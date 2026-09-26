@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TinyChain — a mini blockchain in one file</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #0d1117; color: #e6edf3; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
+  h1 { color: #58a6ff; }
+  .block { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1rem; margin: 1rem 0; }
+  .block .hash { font-family: monospace; font-size: .8rem; color: #7ee787; word-break: break-all; }
+  .block .prev { font-family: monospace; font-size: .8rem; color: #ffa657; word-break: break-all; }
+  input, button { padding: .5rem .8rem; border-radius: 6px; border: 1px solid #30363d; }
+  input { background: #0d1117; color: #e6edf3; width: 60%; }
+  button { background: #238636; color: #fff; cursor: pointer; }
+  button:hover { background: #2ea043; }
+  #status { margin-top: 1rem; font-weight: bold; }
+</style>
+</head>
+<body>
+<h1>⛓️ TinyChain</h1>
+<p>A tiny blockchain demo. Each block stores data + the hash of the previous block.</p>
+<input id="data" placeholder="Block data, e.g. Arman sends 1 BTC">
+<button onclick="addBlock()">Mine block</button>
+<button onclick="validate()" style="background:#1f6feb">Validate chain</button>
+<div id="status"></div>
+<div id="chain"></div>
+<script>
+const chain = [];
+async function sha256(msg) {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
+}
+async function addBlock() {
+  const data = document.getElementById("data").value || "empty block";
+  const prev = chain.length ? chain[chain.length - 1].hash : "GENESIS";
+  const hash = await sha256(prev + "|" + Date.now() + "|" + data);
+  chain.push({ index: chain.length, data, prev, hash });
+  document.getElementById("data").value = "";
+  render();
+}
+async function validate() {
+  for (let i = 1; i < chain.length; i++)
+    if (chain[i].prev !== chain[i - 1].hash) return fail();
+  ok();
+  function ok() { status("✅ Chain is valid", "#7ee787"); }
+  function fail() { status("❌ Chain is broken!", "#f85149"); }
+}
+function status(msg, color) {
+  const el = document.getElementById("status");
+  el.textContent = msg; el.style.color = color;
+}
+function render() {
+  document.getElementById("chain").innerHTML = chain.map(b => `
+    <div class="block">
+      <b>Block #${b.index}</b> — ${b.data}<br>
+      <span class="prev">prev: ${b.prev.slice(0, 24)}…</span><br>
+      <span class="hash">hash: ${b.hash.slice(0, 24)}…</span>
+    </div>`).join("");
+}
+(async () => { // genesis block
+  const hash = await sha256("GENESIS" + Date.now() + "hello chain");
+  chain.push({ index: 0, data: "hello chain", prev: "GENESIS", hash });
+  render();
+})();
+</script>
+</body>
+</html>
