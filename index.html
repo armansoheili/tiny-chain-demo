@@ -34,14 +34,21 @@ async function sha256(msg) {
 async function addBlock() {
   const data = document.getElementById("data").value || "empty block";
   const prev = chain.length ? chain[chain.length - 1].hash : "GENESIS";
-  const hash = await sha256(prev + "|" + Date.now() + "|" + data);
-  chain.push({ index: chain.length, data, prev, hash });
+  const time = Date.now();
+  const hash = await sha256(prev + "|" + time + "|" + data);
+  chain.push({ index: chain.length, data, prev, hash, time });
   document.getElementById("data").value = "";
   render();
 }
 async function validate() {
-  for (let i = 1; i < chain.length; i++)
-    if (chain[i].prev !== chain[i - 1].hash) return fail();
+  for (let i = 0; i < chain.length; i++) {
+    const b = chain[i];
+    // prev-linkage (skip for genesis)
+    if (i > 0 && b.prev !== chain[i - 1].hash) return fail();
+    // recompute the block hash and compare with the stored one
+    const check = await sha256(b.prev + "|" + b.time + "|" + b.data);
+    if (check !== b.hash) return fail();
+  }
   ok();
   function ok() { status("✅ Chain is valid", "#7ee787"); }
   function fail() { status("❌ Chain is broken!", "#f85149"); }
@@ -53,14 +60,16 @@ function status(msg, color) {
 function render() {
   document.getElementById("chain").innerHTML = chain.map(b => `
     <div class="block">
-      <b>Block #${b.index}</b> — ${b.data}<br>
+      <b>Block #${b.index}</b> — ${b.data}
+      <span style="color:#8b949e;font-size:.8rem"> @ ${new Date(b.time).toLocaleTimeString()}</span><br>
       <span class="prev">prev: ${b.prev.slice(0, 24)}…</span><br>
       <span class="hash">hash: ${b.hash.slice(0, 24)}…</span>
     </div>`).join("");
 }
 (async () => { // genesis block
-  const hash = await sha256("GENESIS" + Date.now() + "hello chain");
-  chain.push({ index: 0, data: "hello chain", prev: "GENESIS", hash });
+  const time = Date.now();
+  const hash = await sha256("GENESIS|" + time + "|hello chain");
+  chain.push({ index: 0, data: "hello chain", prev: "GENESIS", hash, time });
   render();
 })();
 </script>
