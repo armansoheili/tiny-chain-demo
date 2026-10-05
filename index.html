@@ -35,8 +35,13 @@ async function addBlock() {
   const data = document.getElementById("data").value || "empty block";
   const prev = chain.length ? chain[chain.length - 1].hash : "GENESIS";
   const time = Date.now();
-  const hash = await sha256(prev + "|" + time + "|" + data);
-  chain.push({ index: chain.length, data, prev, hash, time });
+  status("⛏️ Mining…", "#8b949e");
+  let nonce = 0, hash;
+  do {
+    hash = await sha256(prev + "|" + time + "|" + data + "|" + nonce);
+    nonce++;
+  } while (!hash.startsWith("00"));
+  chain.push({ index: chain.length, data, prev, hash, time, nonce: nonce - 1 });
   document.getElementById("data").value = "";
   render();
 }
@@ -46,7 +51,7 @@ async function validate() {
     // prev-linkage (skip for genesis)
     if (i > 0 && b.prev !== chain[i - 1].hash) return fail();
     // recompute the block hash and compare with the stored one
-    const check = await sha256(b.prev + "|" + b.time + "|" + b.data);
+    const check = await sha256(b.prev + "|" + b.time + "|" + b.data + "|" + b.nonce);
     if (check !== b.hash) return fail();
   }
   ok();
@@ -61,15 +66,19 @@ function render() {
   document.getElementById("chain").innerHTML = chain.map(b => `
     <div class="block">
       <b>Block #${b.index}</b> — ${b.data}
-      <span style="color:#8b949e;font-size:.8rem"> @ ${new Date(b.time).toLocaleTimeString()}</span><br>
+      <span style="color:#8b949e;font-size:.8rem"> @ ${new Date(b.time).toLocaleTimeString()} · nonce ${b.nonce}</span><br>
       <span class="prev">prev: ${b.prev.slice(0, 24)}…</span><br>
       <span class="hash">hash: ${b.hash.slice(0, 24)}…</span>
     </div>`).join("");
 }
 (async () => { // genesis block
   const time = Date.now();
-  const hash = await sha256("GENESIS|" + time + "|hello chain");
-  chain.push({ index: 0, data: "hello chain", prev: "GENESIS", hash, time });
+  let nonce = 0, hash;
+  do {
+    hash = await sha256("GENESIS|" + time + "|hello chain|" + nonce);
+    nonce++;
+  } while (!hash.startsWith("00"));
+  chain.push({ index: 0, data: "hello chain", prev: "GENESIS", hash, time, nonce: nonce - 1 });
   render();
 })();
 </script>
