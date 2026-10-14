@@ -21,12 +21,18 @@
 <h1>⛓️ TinyChain</h1>
 <p>A tiny blockchain demo. Each block stores data + the hash of the previous block.</p>
 <input id="data" placeholder="Block data, e.g. Arman sends 1 BTC">
+<select id="difficulty" title="Mining difficulty: leading zeros">
+  <option value="2" selected>difficulty 2</option>
+  <option value="3">difficulty 3</option>
+  <option value="4">difficulty 4</option>
+</select>
 <button onclick="addBlock()">Mine block</button>
 <button onclick="validate()" style="background:#1f6feb">Validate chain</button>
 <div id="status"></div>
 <div id="chain"></div>
 <script>
 const chain = [];
+const target = () => "0".repeat(Number(document.getElementById("difficulty").value));
 async function sha256(msg) {
   const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(msg));
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, "0")).join("");
@@ -35,12 +41,12 @@ async function addBlock() {
   const data = document.getElementById("data").value || "empty block";
   const prev = chain.length ? chain[chain.length - 1].hash : "GENESIS";
   const time = Date.now();
-  status("⛏️ Mining…", "#8b949e");
+  status("⛏️ Mining (difficulty " + document.getElementById("difficulty").value + ")…", "#8b949e");
   let nonce = 0, hash;
   do {
     hash = await sha256(prev + "|" + time + "|" + data + "|" + nonce);
     nonce++;
-  } while (!hash.startsWith("00"));
+  } while (!hash.startsWith(target()));
   chain.push({ index: chain.length, data, prev, hash, time, nonce: nonce - 1 });
   document.getElementById("data").value = "";
   render();
@@ -77,7 +83,7 @@ function render() {
   do {
     hash = await sha256("GENESIS|" + time + "|hello chain|" + nonce);
     nonce++;
-  } while (!hash.startsWith("00"));
+  } while (!hash.startsWith(target()));
   chain.push({ index: 0, data: "hello chain", prev: "GENESIS", hash, time, nonce: nonce - 1 });
   render();
 })();
